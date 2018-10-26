@@ -36,7 +36,7 @@ RCT_EXPORT_METHOD(mail:(NSDictionary *)options
         MFMailComposeViewController *mail = [[MFMailComposeViewController alloc] init];
         mail.mailComposeDelegate = self;
         _callbacks[RCTKeyForInstance(mail)] = callback;
-
+        
         if (options[@"subject"]){
             NSString *subject = [RCTConvert NSString:options[@"subject"]];
             [mail setSubject:subject];
@@ -47,17 +47,17 @@ RCT_EXPORT_METHOD(mail:(NSDictionary *)options
         if (options[@"isHTML"]){
             isHTML = [options[@"isHTML"] boolValue];
         }
-
+        
         if (options[@"body"]){
             NSString *body = [RCTConvert NSString:options[@"body"]];
             [mail setMessageBody:body isHTML:isHTML];
         }
-
+        
         if (options[@"recipients"]){
             NSArray *recipients = [RCTConvert NSArray:options[@"recipients"]];
             [mail setToRecipients:recipients];
         }
-
+        
         if (options[@"ccRecipients"]){
             NSArray *ccRecipients = [RCTConvert NSArray:options[@"ccRecipients"]];
             [mail setCcRecipients:ccRecipients];
@@ -67,20 +67,89 @@ RCT_EXPORT_METHOD(mail:(NSDictionary *)options
             NSArray *bccRecipients = [RCTConvert NSArray:options[@"bccRecipients"]];
             [mail setBccRecipients:bccRecipients];
         }
-
+        
+        if(options[@"attachments"]) {
+            NSArray *attachments = [RCTConvert NSArray:options[@"attachments"]];
+            for(int i = 0; i < attachments.count; ++i) {
+                NSMutableDictionary *attachment =  attachments[i];
+                NSString *attachmentPath = [RCTConvert NSString:[attachment valueForKey:@"path"]];
+                NSString *attachmentType =  [RCTConvert NSString: [attachment valueForKey:@"type"]];
+                NSString *attachmentName =  [RCTConvert NSString: [attachment valueForKey:@"name"]];
+                // Set default filename if not specificed
+                if (!attachmentName) {
+                    attachmentName = [[attachmentPath lastPathComponent] stringByDeletingPathExtension];
+                }
+                
+                // Get the resource path and read the file using NSData
+                NSData *fileData = [NSData dataWithContentsOfFile:attachmentPath];
+                
+                // Determine the MIME type
+                NSString *mimeType;
+                
+                /*
+                 * Add additional mime types and PR if necessary. Find the list
+                 * of supported formats at http://www.iana.org/assignments/media-types/media-types.xhtml
+                 */
+                if ([attachmentType isEqualToString:@"jpg"] || [attachmentType isEqualToString:@"jpeg"]) {
+                    mimeType = @"image/jpeg";
+                } else if ([attachmentType isEqualToString:@"png"]) {
+                    mimeType = @"image/png";
+                } else if ([attachmentType isEqualToString:@"doc"]) {
+                    mimeType = @"application/msword";
+                } else if ([attachmentType isEqualToString:@"ppt"]) {
+                    mimeType = @"application/vnd.ms-powerpoint";
+                } else if ([attachmentType isEqualToString:@"html"]) {
+                    mimeType = @"text/html";
+                } else if ([attachmentType isEqualToString:@"csv"]) {
+                    mimeType = @"text/csv";
+                } else if ([attachmentType isEqualToString:@"pdf"]) {
+                    mimeType = @"application/pdf";
+                } else if ([attachmentType isEqualToString:@"vcard"]) {
+                    mimeType = @"text/vcard";
+                } else if ([attachmentType isEqualToString:@"json"]) {
+                    mimeType = @"application/json";
+                } else if ([attachmentType isEqualToString:@"zip"]) {
+                    mimeType = @"application/zip";
+                } else if ([attachmentType isEqualToString:@"text"]) {
+                    mimeType = @"text/*";
+                } else if ([attachmentType isEqualToString:@"mp3"]) {
+                    mimeType = @"audio/mpeg";
+                } else if ([attachmentType isEqualToString:@"wav"]) {
+                    mimeType = @"audio/wav";
+                } else if ([attachmentType isEqualToString:@"aiff"]) {
+                    mimeType = @"audio/aiff";
+                } else if ([attachmentType isEqualToString:@"flac"]) {
+                    mimeType = @"audio/flac";
+                } else if ([attachmentType isEqualToString:@"ogg"]) {
+                    mimeType = @"audio/ogg";
+                } else if ([attachmentType isEqualToString:@"xls"]) {
+                    mimeType = @"application/vnd.ms-excel";
+                }
+                // Add attachment
+                if(mimeType != nil && fileData != nil) {
+                    [mail addAttachmentData:fileData mimeType:mimeType fileName:attachmentName];
+                }
+            }
+            UIViewController *root = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
+            while (root.presentedViewController) {
+                root = root.presentedViewController;
+            }
+            [root presentViewController:mail animated:YES completion:nil];
+        }
+        
         if (options[@"attachment"] && options[@"attachment"][@"path"] && options[@"attachment"][@"type"]){
             NSString *attachmentPath = [RCTConvert NSString:options[@"attachment"][@"path"]];
             NSString *attachmentType = [RCTConvert NSString:options[@"attachment"][@"type"]];
             NSString *attachmentName = [RCTConvert NSString:options[@"attachment"][@"name"]];
-
+            
             // Set default filename if not specificed
             if (!attachmentName) {
                 attachmentName = [[attachmentPath lastPathComponent] stringByDeletingPathExtension];
             }
-
+            
             // Get the resource path and read the file using NSData
             NSData *fileData = [NSData dataWithContentsOfFile:attachmentPath];
-
+            
             // Determine the MIME type
             NSString *mimeType;
             
@@ -121,15 +190,15 @@ RCT_EXPORT_METHOD(mail:(NSDictionary *)options
             } else if ([attachmentType isEqualToString:@"ogg"]) {
                 mimeType = @"audio/ogg";
             } else if ([attachmentType isEqualToString:@"xls"]) {
-                mimeType = @"application/vnd.ms-excel";     
+                mimeType = @"application/vnd.ms-excel";
             }
-
+            
             // Add attachment
             [mail addAttachmentData:fileData mimeType:mimeType fileName:attachmentName];
         }
-
+        
         UIViewController *root = [[[[UIApplication sharedApplication] delegate] window] rootViewController];
-
+        
         while (root.presentedViewController) {
             root = root.presentedViewController;
         }
